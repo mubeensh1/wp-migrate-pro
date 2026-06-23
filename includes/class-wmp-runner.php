@@ -44,9 +44,9 @@ class WMP_Runner {
 
     public static function method_label( $method ) {
         $labels = array(
-            self::METHOD_LOOPBACK => 'Background HTTP loopback',
-            self::METHOD_CRON     => 'WP-Cron scheduled event',
-            self::METHOD_INLINE   => 'Inline after-response (shutdown)',
+            self::METHOD_LOOPBACK => 'Background (loopback)',
+            self::METHOD_CRON     => 'Background (cron)',
+            self::METHOD_INLINE   => 'Background (inline)',
         );
         return isset( $labels[ $method ] ) ? $labels[ $method ] : $method;
     }

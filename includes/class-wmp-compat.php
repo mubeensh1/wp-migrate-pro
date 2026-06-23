@@ -245,15 +245,6 @@ class WMP_Compat {
             'note'  => 'Only affects browser uploads. Use Remote URL import to bypass this limit.',
         ];
 
-        $env = 'Standard';
-        if ( self::is_wpengine() )   { $env = 'WP Engine'; }
-        if ( self::is_rocket_net() ) { $env = 'Rocket.net'; }
-        $checks[] = [
-            'label' => 'Host: ' . $env,
-            'ok'    => true,
-            'note'  => '',
-        ];
-
         return $checks;
     }
 }

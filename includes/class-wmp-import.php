@@ -90,8 +90,8 @@ class WMP_Import {
     }
 
     private function extract( string $stage = 'import_extract' ): void {
-        $this->emit( $stage, 'Extracting ' . size_format( filesize( $this->zip_path ) ) . '…', 0.0 );
-        $this->plog( 'Extracting: ' . size_format( filesize( $this->zip_path ) ) );
+        $this->emit( $stage, 'Extracting archive…', 0.0 );
+        $this->plog( 'Extracting ' . size_format( filesize( $this->zip_path ) ) );
         wp_mkdir_p( $this->tmp_dir );
         if ( ! is_writable( $this->tmp_dir ) ) { throw new RuntimeException( "Temp dir not writable: {$this->tmp_dir}" ); }
         WMP_Compat::extract_zip( $this->zip_path, $this->tmp_dir );
@@ -156,7 +156,7 @@ class WMP_Import {
         $sql_file = $this->tmp_dir . 'wmp_database.sql';
         if ( ! file_exists( $sql_file ) ) { throw new RuntimeException( 'wmp_database.sql not found.' ); }
         $sql_size = filesize( $sql_file );
-        $this->emit( $stage, 'Reading SQL (' . size_format( $sql_size ) . ')…', 0.0 );
+        $this->emit( $stage, 'Importing database…', 0.0 );
         $this->plog( 'Importing database (' . size_format( $sql_size ) . ')…' );
         $fh = fopen( $sql_file, 'r' );
         if ( ! $fh ) { throw new RuntimeException( 'Cannot open SQL file.' ); }
@@ -170,7 +170,7 @@ class WMP_Import {
             if ( preg_match( '/^-- Table: `(.+?)`/', $trimmed, $m ) ) {
                 $sub = $sql_size > 0 ? min( 0.99, $bytes / $sql_size ) : 0;
                 $this->emit( $stage, "Table: {$m[1]}", $sub );
-                $this->plog( "  → {$m[1]}", "Table: {$m[1]}" );
+                // table progress via emit only
             }
             if ( $trimmed === '' || strncmp( $trimmed, '--', 2 ) === 0 || strncmp( $trimmed, '#', 1 ) === 0 ) { continue; }
             if ( ! $in_comment && strncmp( $trimmed, '/*', 2 ) === 0 ) {
@@ -188,7 +188,7 @@ class WMP_Import {
         }
         fclose( $fh );
         $wpdb->suppress_errors( $suppress );
-        $this->plog( "DB done. Statements: {$stmts}. Warnings: {$errs}." );
+        $this->plog( "Database import complete." );
         $this->emit( $stage, "Done ({$stmts} statements)", 1.0 );
     }
 
@@ -220,11 +220,11 @@ class WMP_Import {
                     $count++;
                 }
             }
-            if ( ( $i + 1 ) % 5 === 0 ) { $this->plog( "  Tables {$i}/{$total}, {$count} replacements…" ); }
+            if ( ( $i + 1 ) % 5 === 0 ) { $this->plog( "Replacing URLs in tables…" ); }
         }
         update_option( 'siteurl', $new );
         update_option( 'home',    $new );
-        $this->plog( "URL replacement done. {$count} cells updated." );
+        $this->plog( "URL replacement complete." );
         $this->emit( 'import_urls', "Done — {$count} replacements", 1.0 );
     }
 
