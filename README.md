@@ -1,90 +1,98 @@
 # WP Migrate Pro
 
-Full-site WordPress backup and migration plugin — database, files, automatic URL replacement, real-time progress bars with live log, and **524 / gateway-timeout safe**.
+A WordPress plugin for full-site backup, restore, and migration — including all files and the complete database, with automatic URL replacement.
 
 ---
 
-## Key Features
+## Features
 
-| Feature | Detail |
-|---|---|
-| **Full backup** | Exports all DB tables + compresses all of `wp-content` into one `.zip` |
-| **Real-time progress bar** | Animated bar with percentage, stage label, current file/table detail, and live scrolling log |
-| **524 / timeout safe** | Uses a fire-and-forget loopback job — no HTTP connection stays open longer than ~2 s. Cloudflare, WP Engine, Rocket.net, and all CDN proxies cannot kill the operation |
-| **3 import methods** | Upload ZIP · Remote URL (server fetches directly, bypasses `upload_max_filesize`) · Server backup |
-| **Serialisation-safe URL replace** | Replaces URLs in plain text **and** PHP-serialised data (`s:N:` lengths auto-corrected) |
-| **PclZip fallback** | Works even without the `ZipArchive` PHP extension (uses PclZip which ships with WordPress core) |
-| **WP Engine support** | Detects WPE, skips restricted paths, uses `wp_raise_memory_limit`, flushes WPE page cache |
-| **Rocket.net support** | Detects environment, flushes WP Rocket cache after import |
-| **Cache flush** | Clears WP object cache, WP Engine, WP Rocket, W3 Total Cache, WP Super Cache, Autoptimize |
-| **Security** | Nonce + `manage_options` on every action, path-traversal guards, zip-slip prevention, SSRF protection, MIME validation, per-file signed download URLs |
+- **Full backup** — exports every database table and compresses your entire `wp-content` directory into a single `.zip` file
+- **One-click restore** — revert your site to any stored backup point with a single click
+- **Three import methods** — upload a ZIP from your computer, paste a remote URL, or select a backup already on the server
+- **Automatic URL replacement** — when migrating to a new domain, all URLs in the database are updated automatically, including PHP-serialised data
+- **Real-time progress bar** — live percentage, stage label, and scrolling log during backup, import, and restore
+- **Backup exclusions** — cache directories, log files, and any file or folder containing `backup`, `backups`, or `bkp` are automatically excluded
+
+---
+
+## Requirements
+
+- WordPress 5.6 or higher
+- PHP 7.4 or higher
+- Administrator role
+- At least 128 MB memory limit (recommended)
 
 ---
 
 ## Installation
 
-1. Upload `wp-migrate-pro.zip` via **Plugins → Add New → Upload Plugin**
-2. Activate **WP Migrate Pro**
-3. Go to **Migrate Pro** in the left admin menu
-
-**Requirements:** PHP 7.4+, WordPress 5.6+, Administrator role
+1. Go to **Plugins → Add New → Upload Plugin**
+2. Select `wp-migrate-pro.zip` and click **Install Now**
+3. Click **Activate Plugin**
+4. Go to **Migrate Pro** in the left admin menu
 
 ---
 
-## How to Migrate a Site
+## How to Back Up
 
-### On the **source** site:
 1. Go to **Migrate Pro → Backup**
-2. Click **Create Backup Now** and watch the real-time progress bar
-3. When complete, click **Download** to save the `.zip`
+2. Click **Create Backup Now**
+3. Watch the progress bar — the backup runs in the background
+4. When complete, the page reloads and your backup appears in **My Backups**
 
-### On the **destination** site:
+---
+
+## How to Migrate to a New Site
+
+### On the source site
+1. Go to **Migrate Pro → Backup** and create a backup
+2. Go to **My Backups**, click **Download** to save the `.zip`
+
+### On the destination site
 1. Install and activate WP Migrate Pro
 2. Go to **Migrate Pro → Import**
-3. Enter the **Destination URL** (e.g. `https://newsite.com`)
-4. Choose method — **Upload ZIP**, **Remote URL**, or **Server Backup**
-5. Click Import and watch the progress. The plugin will:
-   - Extract the archive
-   - Restore all `wp-content` files
-   - Import the full database
-   - Replace every URL (serialisation-safe)
-   - Flush all caches
+3. Set the **Destination URL** to the new site's domain (e.g. `https://newsite.com`)
+4. Choose an import method:
+   - **Upload ZIP** — drag and drop the file you downloaded
+   - **Remote URL** — paste a direct link to the backup file; the server fetches it (no upload size limit)
+   - **Server Backup** — select a backup already stored on this server
+5. Click Import and wait for the progress bar to complete
+
+The plugin will extract the archive, restore all files, import the database, replace every URL, and flush all caches.
 
 ---
 
-## Solving the 524 / Gateway Timeout Error
+## How to Restore
 
-The 524 error is a **Cloudflare gateway timeout** — Cloudflare kills HTTP connections after ~100 seconds. Since large backups/imports take much longer, the old approach of one long AJAX call always failed on proxied hosts.
+1. Go to **Migrate Pro → My Backups**
+2. Select a backup from the **Restore** dropdown at the top
+3. Click **Restore Selected** and confirm
+4. The site's database and files will be reverted to that backup point
 
-**WP Migrate Pro v1.2 solves this completely:**
-
-```
-Browser → POST wmp_start_backup  (returns job_id in < 2 s)  ✔ no timeout
-Server  → fires background loopback to wmp_run_job (non-blocking)
-Browser → polls wmp_poll_progress every 1.2 s  (each call < 1 s) ✔ no timeout
-PHP     → runs the real work, writes progress to a JSON file
-Browser → reads the JSON file via polls, updates the progress bar
-```
-
-Each HTTP request completes in well under 2 seconds. **The proxy never sees a long-lived connection.**
+Restore does not change the site URL — it simply replaces the current database and files with those from the backup.
 
 ---
 
-## Host-specific Configuration
+## Import Methods Explained
 
-### WP Engine / Rocket.net — custom backup path
+| Method | Best for |
+|---|---|
+| **Upload ZIP** | Backups under your server's upload limit |
+| **Remote URL** | Large backups — the server downloads directly, bypassing upload limits |
+| **Server Backup** | Backups already on this server (e.g. created here and not yet deleted) |
 
-Add to `wp-config.php` to store backups outside the web root:
+---
 
-```php
-define( 'WMP_BACKUP_PATH', '/home/user/private/wmp-backups/' );
-```
+## What Gets Excluded from Backups
 
-### Max file size (default 2 GB)
+The following are automatically skipped during backup:
 
-```php
-define( 'WMP_MAX_FILE_SIZE', 4 * 1024 * 1024 * 1024 ); // 4 GB
-```
+- Cache directories (`cache`, `wp-rocket`, `w3tc`, `breeze`, `litespeed`, etc.)
+- Temporary and upgrade directories
+- Log files (`.log`)
+- Any file or directory whose name contains `backup`, `backups`, or `bkp`
+- Known backup plugin directories (`updraftplus`, `duplicator`, `backupbuddy`, etc.)
+- Files larger than 500 MB
 
 ---
 
@@ -92,35 +100,55 @@ define( 'WMP_MAX_FILE_SIZE', 4 * 1024 * 1024 * 1024 ); // 4 GB
 
 ```
 wp-migrate-pro/
-├── wp-migrate-pro.php              # Bootstrap, constants
+├── wp-migrate-pro.php              Bootstrap and constants
 ├── includes/
-│   ├── class-wmp-compat.php        # Environment detection, ZipArchive/PclZip abstraction
-│   ├── class-wmp-progress.php      # JSON progress file writer (polled by browser)
-│   ├── class-wmp-backup.php        # Backup engine — DB export + file ZIP with progress
-│   ├── class-wmp-import.php        # Import engine — extract, files, DB, URL replace with progress
-│   ├── class-wmp-ajax.php          # AJAX handlers: start/poll/download/delete + loopback runner
-│   └── class-wmp-admin.php         # Admin menu, asset enqueue, page render
+│   ├── class-wmp-compat.php        ZIP library abstraction, environment helpers
+│   ├── class-wmp-progress.php      Progress file writer, polled by the browser
+│   ├── class-wmp-runner.php        Background job dispatcher
+│   ├── class-wmp-backup.php        Backup engine
+│   ├── class-wmp-import.php        Import and restore engine
+│   ├── class-wmp-ajax.php          All AJAX endpoints
+│   └── class-wmp-admin.php         Admin menu and page
 ├── templates/
-│   └── admin-page.php              # Full admin UI (Backup / Import / My Backups / Requirements)
+│   └── admin-page.php              Admin UI
 └── assets/
-    ├── css/admin.css               # Complete UI styles including progress bar
-    └── js/admin.js                 # Tab switching, drag-drop, polling, progress animation
+    ├── css/admin.css
+    └── js/admin.js
+```
+
+---
+
+## Custom Backup Directory
+
+To store backups outside the web root, add this to `wp-config.php`:
+
+```php
+define( 'WMP_BACKUP_PATH', '/home/user/private/wmp-backups/' );
 ```
 
 ---
 
 ## Changelog
 
-### 1.2.0
-- Real-time progress bar with percentage, stage label, detail line, and live scrolling log
-- Solved 524 Cloudflare timeout: fire-and-forget loopback job + progress file polling
-- Animated shimmer bar, smooth pct counter, done/error bar states
+### 1.4.1
+- Removed host-specific messages and banners from the UI
+- Simplified log output and confirm dialogs
+- Cleaned up Requirements tab
 
-### 1.1.0
-- PclZip fallback (no ZipArchive needed)
-- WP Engine + Rocket.net compatibility
-- SSRF protection, zip-slip guard, MIME validation
-- Requirements tab
+### 1.4.0
+- Added Restore feature — revert to any backup from My Backups tab
+- Fixed 95%→0% progress reset bug (Progress factory pattern)
+- Fixed `function_exists(Closure)` fatal error on some PHP/WordPress versions
+
+### 1.3.x
+- Fixed 0% stuck bug — background job now uses static property instead of transient for inline mode
+- Added automatic exclusion of backup files and directories from scans
+- Loopback token no longer passed through `sanitize_key()` which was corrupting it
+
+### 1.2.0
+- Real-time progress bar with percentage, stage label, and live log
+- Background execution with loopback → cron → inline fallback chain
+- PclZip fallback for hosts without ZipArchive
 
 ### 1.0.0
 - Initial release
